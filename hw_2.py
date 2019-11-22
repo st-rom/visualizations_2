@@ -99,10 +99,10 @@ chart = base.mark_bar().encode(
     avg_score='average(score)',
     groupby=['artist']
 ).transform_window(
-    rank='rank(avg_score)', ignorePeers=True,
+    row_number='row_number(avg_score)', ignorePeers=True,
     sort=[alt.SortField('avg_score', order='descending')]
 ).transform_filter(
-    (alt.datum.rank <= 10)
+    (alt.datum.row_number <= 10)
 )
 
 chart
@@ -142,11 +142,26 @@ chart
 
 """# Task 5"""
 
+alt.Chart(df).mark_bar().encode(
+    x = alt.X('primary:N'),
+    y = alt.Y('count()', sort=alt.Sort(field='count()', op='mean',  order='descending')),
+    color = alt.Color('primary:N'),
+    column = alt.Column('date:T', timeUnit='year')
+).properties(width = 80)
+
+base.mark_trail().encode(
+    x = alt.X('date:T', timeUnit='year'),
+    y = alt.Y('primary:N', sort=alt.Sort(op='count', order='descending')),
+    detail = alt.Detail('primary'),
+    size = alt.Size('count()', scale = alt.Scale(range = [1, 25])))
+
 alt.Chart(df).mark_rect().encode(
     x = alt.X('date:T', timeUnit='year'),
     y = alt.Y('primary', sort=alt.Sort(field='count()', op='mean',  order='descending')),
     color = alt.Color('count()', aggregate='mean', scale=alt.Scale(scheme='brownbluegreen'))
 ).properties(width = 800).transform_aggregate(count='count()', groupby=['primary', 'year(date)'])
+
+
 
 """# Task 1
 ## V4
@@ -227,4 +242,26 @@ alt.Chart(df).mark_rect().encode(
     y = alt.Y('count()'),
     color = alt.Color('primary')
 ).properties(width = 850)
+
+selector = alt.selection_single(fields=['primary'])
+
+base2 = alt.Chart(df).properties(
+    width=1200,
+    height=150
+).encode(
+    y = alt.Y('average(score)'),
+    x = alt.X('count()')).add_selection(selector)
+
+chart = base2.mark_circle(size = 500).encode(
+    tooltip = alt.Tooltip('primary'),
+    color=alt.condition(selector, 'primary:N', alt.value('#f1e2cc')),
+)
+
+chart2 = base2.mark_circle(size = 200).encode(
+    tooltip = alt.Tooltip('date:T', timeUnit='year'),
+    detail=alt.Detail('date:T', timeUnit='year')
+).transform_filter(selector)
+
+
+chart + chart2
 
