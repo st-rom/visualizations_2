@@ -89,6 +89,8 @@ chart & chart2
 
 """# Task 2"""
 
+## <b>V1</b>
+
 chart = base.mark_bar().encode(
     x = alt.X('artist:N',
         sort=alt.EncodingSortField(
@@ -107,9 +109,80 @@ chart = base.mark_bar().encode(
 
 chart
 
-"""# Task 3"""
+"""## <b>V2</b>"""
 
-chart = base.mark_bar().encode(
+chart = base.properties(width=260).mark_bar().encode(
+    y = alt.Y('artist:N',
+        sort=alt.EncodingSortField(
+            field="avg_score", op="mean", order="descending")
+        ),
+     x = alt.X('avg_score:Q')
+).transform_aggregate(
+    avg_score='average(score)',
+    groupby=['artist']
+).transform_window(
+    row_number='row_number(avg_score)', ignorePeers=True,
+    sort=[alt.SortField('avg_score', order='descending')]
+).transform_filter(
+    (alt.datum.row_number <= 10)
+)
+
+text_score = base.properties(width=260).mark_text(align='left', dx=3).encode(
+    y = alt.Y('artist:N',
+        sort=alt.EncodingSortField(
+            field="avg_score", op="mean", order="descending")
+        ),
+     x = alt.X('avg_score:Q'),
+     text = 'avg_score:Q'
+).transform_aggregate(
+    avg_score='average(score)',
+    groupby=['artist']
+).transform_window(
+    row_number='row_number(avg_score)', ignorePeers=True,
+    sort=[alt.SortField('avg_score', order='descending')]
+).transform_filter(
+    (alt.datum.row_number <= 10)
+)
+
+text_names = base.properties(width=260,title='').mark_text(align='right', dx=-3).encode(
+    y = alt.Y('artist:N',
+        sort=alt.EncodingSortField(
+            field="avg_score", op="mean", order="descending"),
+        axis=alt.Axis(labels=False)
+        ),
+     x = alt.X('avg_score:Q'),
+     text = 'artist:N'
+).transform_aggregate(
+    avg_score='average(score)',
+    groupby=['artist']
+).transform_window(
+    row_number='row_number(avg_score)', ignorePeers=True,
+    sort=[alt.SortField('avg_score', order='descending')]
+).transform_filter(
+    (alt.datum.row_number <= 10)
+)
+
+chart + text_score + text_names
+
+"""# Task 3
+
+## Better version
+"""
+
+chart = base.mark_point().properties(width=400).encode(
+    x = alt.X('score', bin=alt.Bin(step=0.5)),
+     y = alt.Y('primary:N'),
+     size = alt.Size('count()', scale=alt.Scale(range=[0, 500])),
+     color = 'primary:N'
+).transform_filter(
+    (alt.datum.score <2 )
+)
+
+chart
+
+"""## Other version"""
+
+chart = base.mark_bar().properties(title='Number of overall records with score higher than 8 by style').encode(
     x = alt.X('primary:N',
         sort=alt.EncodingSortField(
             field="count", op="mean", order="descending")
@@ -124,9 +197,25 @@ chart = base.mark_bar().encode(
 
 chart
 
-"""# Task 4"""
+"""# Task 4
 
-chart = base.mark_bar().encode(
+## Better version
+"""
+
+chart = base.properties(width=150).mark_bar().encode(
+    x = alt.X('primary:N'),
+     y = alt.Y('count()'),
+     column = alt.Column('score', bin=alt.Bin(step = 0.5)),
+     color = 'primary:N'
+).transform_filter(
+    (alt.datum.score < 2)
+)
+
+chart
+
+"""## Other version"""
+
+chart = base.mark_bar().properties(title='Number of overall records with score lower than 2 by style').encode(
     x = alt.X('primary:N',
         sort=alt.EncodingSortField(
             field="count", op="mean", order="ascending")),
@@ -142,12 +231,35 @@ chart
 
 """# Task 5"""
 
-alt.Chart(df).mark_bar().encode(
-    x = alt.X('primary:N'),
-    y = alt.Y('count()', sort=alt.Sort(field='count()', op='mean',  order='descending')),
-    color = alt.Color('primary:N'),
-    column = alt.Column('date:T', timeUnit='year')
-).properties(width = 80)
+years = df['date'] = pd.to_datetime(df['date'])
+years = years.map(lambda x: x.strftime('%Y')).unique()
+chrts = []
+
+for y in range(len(years)-1, -1, -1):
+    chart = alt.Chart(df).mark_bar().encode(
+        x = alt.X('primary:N', sort=alt.Sort(field='count', op='mean',  order='descending')),
+        y = alt.Y('count:Q'),
+        color = alt.Color('primary:N'),
+        # column = alt.Column('date:T', timeUnit='year')
+    )
+
+    color = alt.Chart(df).mark_text(baseline='bottom').encode(
+        x = alt.X('primary:N', sort=alt.Sort(field='count', op='mean',  order='descending')),
+        y = alt.Y('count:Q'),
+        text = 'count:Q',
+        # column = alt.Column('date:T', timeUnit='year')
+    )
+
+    chrts.append((chart + color).properties(width = 280, title='Year ' + str(years[y])
+    ).transform_calculate(year = 'year(datum.date)'
+    ).transform_filter(
+    alt.FieldOneOfPredicate(field='year', oneOf=[int(years[y])])
+    ).transform_aggregate(
+        count='count()',
+        groupby=['primary']
+    ))
+    
+alt.hconcat(*chrts)
 
 base.mark_trail().encode(
     x = alt.X('date:T', timeUnit='year'),
@@ -155,15 +267,17 @@ base.mark_trail().encode(
     detail = alt.Detail('primary'),
     size = alt.Size('count()', scale = alt.Scale(range = [1, 25])))
 
-alt.Chart(df).mark_rect().encode(
-    x = alt.X('date:T', timeUnit='year'),
-    y = alt.Y('primary', sort=alt.Sort(field='count()', op='mean',  order='descending')),
-    color = alt.Color('count()', aggregate='mean', scale=alt.Scale(scheme='brownbluegreen'))
-).properties(width = 800).transform_aggregate(count='count()', groupby=['primary', 'year(date)'])
 
 
 
-"""# Task 1
+
+
+
+
+
+"""# Чернетка
+
+# Task 1
 ## V4
 Interactive
 """
@@ -264,4 +378,10 @@ chart2 = base2.mark_circle(size = 200).encode(
 
 
 chart + chart2
+
+alt.Chart(df).mark_rect().encode(
+    x = alt.X('date:T', timeUnit='year'),
+    y = alt.Y('primary', sort=alt.Sort(field='count()', op='mean',  order='descending')),
+    color = alt.Color('count()', aggregate='mean', scale=alt.Scale(scheme='brownbluegreen'))
+).properties(width = 800).transform_aggregate(count='count()', groupby=['primary', 'year(date)'])
 
